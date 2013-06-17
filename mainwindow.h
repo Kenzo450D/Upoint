@@ -19,7 +19,18 @@ public:
     ~MainWindow();
     QGraphicsScene* scene = new QGraphicsScene();
     QGraphicsPixmapItem item;
-    
+//    QColor sRGBtoLch(QColor);
+
+    void srgb2lch(float fimg[][4], int size);
+
+    void srgb2lab(float fimg[][4], int size);
+
+    void srgb2xyz(float fimg[][4], int size);
+
+    void xyz2srgb(float fimg[][4], int size);
+
+    void lab2srgb(float fimg[][4], int size);
+
 private slots:
     void on_pushButton_clicked();
 
@@ -35,6 +46,7 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
+
 };
 
 #endif // MAINWINDOW_H
