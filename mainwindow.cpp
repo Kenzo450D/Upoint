@@ -24,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->lineEdit_4->setEnabled(false);
     ui->lineEdit_5->setEnabled(false);
     ui->graphicsView->show();
-    this->setFixedSize(760,530);
+    this->setFixedSize(1024,583);
     //----To Enable the "Generate Crop Button"-----------------------------------------
     connect(ui->lineEdit_2,SIGNAL(textChanged(QString)), this, SLOT(checkLineEdits()));
     connect(ui->lineEdit_3,SIGNAL(textChanged(QString)), this, SLOT(checkLineEdits()));
@@ -241,9 +241,9 @@ void MainWindow::on_pushButton_5_clicked() // Generate Crop
     qDebug() << "That was the end of the test!";
     //-----We convert the whole image to CIELAB
 //    return;
-    srgb2lch(fimg,sz);
+    srgb2lab(fimg,sz);
     qDebug() << "After conversion:";
-    QFile file2("/home/sayantan/WORK/samples/lch.txt");
+    QFile file2("/home/sayantan/WORK/samples/lab.txt");
     file2.open(QIODevice::WriteOnly | QIODevice::Text);
     QTextStream outlch(&file2);
     for(j=0; j<sz; j++)
@@ -253,17 +253,73 @@ void MainWindow::on_pushButton_5_clicked() // Generate Crop
     file2.close();
     qDebug() << "That was the converted data!";
     //-----Consider the pixel color to be compared with
-    //Here we consider the central pixel, i.e. centerx and centery, we take the color of those pixels
-    //
+    //Here we consider the central pixel, i.e. center, we take the color of those pixels
+    float reference[4];
+    c=QColor::fromRgba(img.pixel(center));
+    float difference[sz];
+    float ref[1][4];
+    ref[0][0]=c.redF();
+    ref[0][1]=c.greenF();
+    ref[0][2]=c.blueF();
+    ref[0][3]=c.alphaF();
+    qDebug() << "ref srgb";
+    qDebug() << ref[0][0] << "\t" << ref[0][1] << "\t" << ref[0][2] << "\t" << ref[0][3];
+    srgb2lab(ref,1);
+    qDebug() << "ref lab";
+    qDebug() << ref[0][0] << "\t" << ref[0][1] << "\t" << ref[0][2] << "\t" << ref[0][3];
+    reference[0]=ref[0][0];
+    reference[1]=ref[0][1];
+    reference[2]=ref[0][2];
+    reference[3]=ref[0][3];
+    qDebug() << reference[0] << "\t" << reference[1] << "\t" << reference[2];
+    colorDifference(fimg,reference,difference,sz);
+    QFile file3("/home/sayantan/WORK/samples/difference.txt");
+    file3.open(QIODevice::WriteOnly | QIODevice::Text);
+    QTextStream outdiff(&file3);
+    for(j=0; j<sz; j++)
+    {
+        outdiff << difference[j] << "\n";
+        //qDebug() << difference[j];
+    }
+    file3.close();
+    qDebug() << "Differences noted!";
+    lab2srgb(fimg,sz);
+    x=0;
+    for (i=0;i<mask.height(); i++)
+    {
+        for(j=0;j<mask.width();j++)
+        {
+            c=QColor::fromRgba(mask.pixel(j,i));
+            if (difference[x]<0.1)
+            {
+                mask.setPixel(j,i,QColor(((int)(fimg[x][0]*255)),((int)(fimg[x][1]*255)),((int)(fimg[x][2]*255)),(fimg[x][3]*255*(0.1-difference[x])*10)).rgba());
+            }
+            else
+            {
+                mask.setPixel(j,i,QColor(((int)(fimg[x][0]*255)),((int)(fimg[x][1]*255)),((int)(fimg[x][2]*255)),0).rgba());
+            }
+            x++;
+        }
+    }
+    bool istrue=mask.save("Colored Circular.png");
+    qDebug() << "Check for good save : " << istrue;
     return;
 }
 
 void MainWindow::srgb2lch(float fimg[][4], int size)
 {
-    float l, c, h;
-
+    float c, h;
+    int i;
     srgb2lab(fimg,size);
 
+    QFile file("/home/sayantan/WORK/samples/lab.txt");
+    file.open(QIODevice::WriteOnly | QIODevice::Text);
+    QTextStream out(&file);
+    for (i=0; i<size; i++)
+    {
+        out << fimg[i][0] << "\t" << fimg[i][1] << "\t" << fimg[i][2] << "\t" << fimg[i][3]<<"\n";
+    }
+    file.close();
     for(int i=0; i<size; i++)
     {
         c=qSqrt((fimg[i][1]*fimg[i][1]) + (fimg[i][2]*fimg[i][2])); //chroma
@@ -439,4 +495,41 @@ void MainWindow::lab2srgb(float fimg[][4], int size)
     }
 
     xyz2srgb(fimg, size);
+}
+
+void MainWindow::colorDifference(float fimg[][4], float reference[4], float* difference, int size)
+{
+    //This code will be on the function of CIE94
+    //We will test it on the basis that 
+    //wiki link: http://en.wikipedia.org/wiki/Color_difference#CIE94
+    //stackoverflow link: http://stackoverflow.com/questions/6630599/are-there-known-implementations-of-the-ciede2000-or-cie94-delta-e-color-differen
+    
+    //fimg contains all the pixels, so for each of the pixel, we consider that the color of the pixel is Lab and not Lch, we will calculate the rest of the data from this Lab. :) If so required, we would also convert from Lab to Lch
+    float dl       = 0;   //delta L (Lightness)
+    float cab       = 0;
+    float c1       = 0;   //chroma 1
+    float c2       = 0;   //chroma 2
+    float hab      = 0;  //Hypotenuse
+    float dab      = 0;  //delta Lab
+    float deltaE   = 0;
+    const float kl = 1;
+    const float k1 = 0.045;
+    const float k2 = 0.015;
+    float sl       = 1;
+    float sc       = 1;
+    float sh       = 1;
+    int i;
+    for(i=0; i<size; i++)
+    {
+        dl = reference[0] - fimg[i][0];
+        c2 = qSqrt(fimg[i][1]*fimg[i][1] + fimg[i][2]*fimg[i][2]);
+        c1 = qSqrt(reference[1]*reference[1]+reference[2]*reference[2]);
+        cab = c1 - c2;
+        //dab = qSqrt(qPow((reference[0] - fimg[i][0]),2) + qPow((reference[1] - fimg[i][1]),2) + qPow((reference[2] - fimg[i][2]),2));
+        hab = qSqrt(qPow((reference[1] - fimg[i][1]),2) + qPow((reference[2] - fimg[i][2]),2) - qPow(cab,2));
+        sc = 1 +k1*c1;
+        sh = 1 +k2*c1;
+        deltaE = qSqrt(qPow( ( dl / (kl*sl ) ), 2 ) + qPow((cab / sc), 2) + qPow((hab / sh), 2));
+        difference[i]=deltaE;
+    }
 }
