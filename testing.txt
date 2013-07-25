@@ -1,0 +1,10 @@
+This is a basic Qt Project, this is how to test the package:
+
+1. Take a image file (currently just jpeg file or png file), and open it in the application.
+2. Click on "Enter Point", and enter the (x,y) coordinates of the center of the local adjustment region
+3. Click on "Enter Radius", and enter the inner and outer radius of the circular region with the center as the previous point.
+4. Click on "Generate Crop" to make a png file of the selection, the file is saved as "Colored Circular.png" file.
+5. Currently the image is edited using gimp, making all hue saturation changes (the changes can be linked later in digikam)
+6. After editing the changes in gimp, the file is overwritten.
+7. Click on "Attach Crop" to attach the crop back to the image.
+8. The image is saved as "finalresult.png"

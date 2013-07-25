@@ -17,7 +17,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
-    QGraphicsScene* scene = new QGraphicsScene();
+    QGraphicsScene* scene = new QGraphicsScene(this);
     QGraphicsPixmapItem item;
 //    QColor sRGBtoLch(QColor);
 
@@ -45,6 +45,8 @@ private slots:
     void on_pushButton_3_clicked();
 
     void on_pushButton_5_clicked();
+
+    void on_pushButton_6_clicked();
 
 private:
     Ui::MainWindow *ui;

@@ -9,6 +9,8 @@
 #include <QGraphicsItem>
 #include <QGraphicsScene>
 #include <QGraphicsPixmapItem>
+#include <QPainter>
+#include <QPixmap>
 #include <qmath.h>
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -19,6 +21,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->pushButton_3->setEnabled(false);
     ui->pushButton_4->setEnabled(false);
     ui->pushButton_5->setEnabled(false);
+    //ui->pushButton_6->setEnabled(false);
     ui->lineEdit_2->setEnabled(false);
     ui->lineEdit_3->setEnabled(false);
     ui->lineEdit_4->setEnabled(false);
@@ -87,18 +90,19 @@ void MainWindow::on_pushButton_4_clicked()
 
 void MainWindow::checkLineEdits()
 {
-    bool ok = !ui->lineEdit_2->text().isEmpty()
-            && !ui->lineEdit_3->text().isEmpty()
-            && !ui->lineEdit_4->text().isEmpty()
-            && !ui->lineEdit_5->text().isEmpty();
-    ui->pushButton_5->setEnabled(ok);
+//    bool ok = !ui->lineEdit_2->text().isEmpty()
+//            && !ui->lineEdit_3->text().isEmpty()
+//            && !ui->lineEdit_4->text().isEmpty()
+//            && !ui->lineEdit_5->text().isEmpty();
+    ui->pushButton_5->setEnabled(true);
+    ui->pushButton_6->setEnabled(true);
 }
 
 void MainWindow::checkLineRadius()
 {
     bool ok = !ui->lineEdit_2->text().isEmpty()
             && !ui->lineEdit_3->text().isEmpty();
-    ui->pushButton_3->setEnabled(ok);
+    ui->pushButton_3->setEnabled(true);
 }
 
 void MainWindow::on_pushButton_3_clicked()
@@ -138,6 +142,9 @@ void MainWindow::on_pushButton_5_clicked() // Generate Crop
     {
         bottomlimit = img.height() -1;
     }
+
+    //---- Preparing QRect for the crop ---------------------------------------
+
     QRect crop;
     QPoint p1;
     p1.setX(leftlimit);
@@ -147,6 +154,15 @@ void MainWindow::on_pushButton_5_clicked() // Generate Crop
     p2.setY(bottomlimit);
     crop.setTopLeft(p1);
     crop.setBottomRight(p2);
+
+    //---- Selection Coordinates-----------------------------------------------
+
+    int sCenterX=center.x()-leftlimit;
+    int sCenterY=center.y()-toplimit;
+    ui->label_9->setText(QString::number(sCenterX));
+    ui->label_10->setText(QString::number(sCenterY));
+
+    //---- Making the QImage Mask ---------------------------------------------
     QImage mask;
     QSize size;
     size.setHeight(bottomlimit-toplimit+1);
@@ -158,11 +174,13 @@ void MainWindow::on_pushButton_5_clicked() // Generate Crop
     mask = mask.convertToFormat(QImage::Format_ARGB32);
     qDebug() << "After copy that i am format of : " << mask.format();
     mask.save("maskedImage.jpg",0,-1);
+
     //-----Task 2 -- Making the crop Circular ---------------------------------
+
     //To make the crop circular, we first make Alpha = 0, for all points out of
     //the boundary. For the rest, we work on specific values of alpha.
-    int centerx=mask.width()/2;
-    int centery=mask.height()/2;
+    int centerx=sCenterX;
+    int centery=sCenterY;
     int r,g,b;
     int i,j;
     float a;
@@ -194,7 +212,8 @@ void MainWindow::on_pushButton_5_clicked() // Generate Crop
                 {
                     a=(diffRadius-(distance-innerRadius))/diffRadius;
                     a=a*255;
-                    qDebug() << "Alpha Value = " << a;
+                    //**** UNCOMMENT FOR CHECK (next line) ***
+//                    qDebug() << "Alpha Value = " << a;
                     mask.setPixel(j,i,QColor(r,g,b,((int)(qFloor(a)))).rgba());
                 }
 //                a=(diffRadius-(distance-innerRadius))/diffRadius;
@@ -290,9 +309,9 @@ void MainWindow::on_pushButton_5_clicked() // Generate Crop
         for(j=0;j<mask.width();j++)
         {
             c=QColor::fromRgba(mask.pixel(j,i));
-            if (difference[x]<0.1)
+            if (difference[x]<0.2)
             {
-                mask.setPixel(j,i,QColor(((int)(fimg[x][0]*255)),((int)(fimg[x][1]*255)),((int)(fimg[x][2]*255)),(fimg[x][3]*255*(0.1-difference[x])*10)).rgba());
+                mask.setPixel(j,i,QColor(((int)(fimg[x][0]*255)),((int)(fimg[x][1]*255)),((int)(fimg[x][2]*255)),(fimg[x][3]*255*(0.2-difference[x])*5)).rgba());
             }
             else
             {
@@ -532,4 +551,126 @@ void MainWindow::colorDifference(float fimg[][4], float reference[4], float* dif
         deltaE = qSqrt(qPow( ( dl / (kl*sl ) ), 2 ) + qPow((cab / sc), 2) + qPow((hab / sh), 2));
         difference[i]=deltaE;
     }
+}
+
+void MainWindow::on_pushButton_6_clicked()
+{
+    int x,i; //loop variables for x axis
+    int y,j; //loop variables for y axis
+
+    QImage img;
+    img.load(ui->lineEdit->text());
+//    QPainter paint(this);
+//    QRectF target(0,0,img.height(),img.width());
+//    paint.drawImage(target, img, target);
+//    top.load("Colored Circular.png");
+//    paint.drawImage(target,top,load);
+
+    //---- Making the new layer as the same size of the old image -------------
+
+    QImage layer;
+    layer=QImage(img.size(),QImage::Format_ARGB32);
+    //layer is not initialized, contains garbage data
+    QImage selection;
+    selection.load("Colored Circular.png");
+//    return;
+
+    //Copy the selection to the layer, in the correct position.
+    //Position is determined by the Main Center Coordinates
+    //and the position of the center of the selection
+
+    //Initialize variables
+    int origCenterX=ui->lineEdit_2->text().toInt();
+    int origCenterY=ui->lineEdit_3->text().toInt();
+    int selectionCenterX=ui->label_9->text().toInt();
+    int selectionCenterY=ui->label_10->text().toInt();
+    int outerRadius=ui->lineEdit_5->text().toInt();
+//    int leftlimit = origCenterX - outerRadius;
+//    int rightlimit = origCenterX + outerRadius -1;
+//    int toplimit = origCenterY - outerRadius;
+//    int bottomlimit = origCenterY + outerRadius -1;
+    int leftlimit;
+    int rightlimit;
+    int toplimit;
+    int bottomlimit;
+    //-----Check if borders exceed image boundaries
+//    if (leftlimit < 0 )
+//    {
+//        leftlimit = 0;
+//    }
+//    if (rightlimit >= img.width())
+//    {
+//        rightlimit = img.width()-1;
+//    }
+//    if (toplimit < 0 )
+//    {
+//        toplimit = 0;
+//    }
+//    if ( bottomlimit >= img.height())
+//    {
+//        bottomlimit = img.height() -1;
+//    }
+
+    //we do not need check border, but we can directly write down
+    leftlimit = origCenterX - selectionCenterX;
+    toplimit  = origCenterY - selectionCenterY;
+    rightlimit = leftlimit + selection.width();
+    bottomlimit = toplimit + selection.height();
+
+    //Initializing QImage layer with transparent fill
+
+    for(i=0;i<layer.width();i++)
+    {
+        for (j=0;j<layer.height();j++)
+        {
+            layer.setPixel(i,j,qRgba(0,0,0,0));
+        }
+    }
+
+    //test layer
+    layer.save("humans rule.png");
+
+    //check parameters
+    qDebug() << "left limit  = " << leftlimit;
+    qDebug() << "right limit = " << rightlimit;
+    qDebug() << "top limit   = " << toplimit;
+    qDebug() << "bottom limit = " << bottomlimit;
+
+//    return;
+    //The origCenter and selectionCenter should be on the same place on Image layer
+    for(x=leftlimit, i=0 ; x < rightlimit ; x++, i++ )
+    {
+        for (y=toplimit, j=0 ; y < bottomlimit ; y++, j++)
+        {
+            layer.setPixel(x,y,selection.pixel(i,j));
+        }
+    }
+
+    //Check
+
+    qDebug() << "Made the layer, saving layer to file, for check";
+    layer.save("layer.png");
+
+    //---- Making a pixmap from the initial image -----------------------------
+    QPixmap base;
+    base=QPixmap::fromImage(img);
+    QPainter painter(&img);
+    QPixmap pixlayer;
+    pixlayer=QPixmap::fromImage(layer);
+    QPointF point;
+    point.setX(0);
+    point.setY(0);
+    painter.drawImage(point,layer);
+//    painter.drawImage(&point,&layer,&layer.rect(), Qt::ImageConversionFlags flags = Qt::AutoColor);
+//    painter.drawImage(0,0,&layer,0,0,-1,-1,Qt::ImageConversionFlag=AutoColor);
+    img.save("finalresult.png");
+//    painter.drawPixmap(0,0,img.width(),img.height(),&pixlayer);
+
+
+
+    //---- Painting new pixmap over the old pixmap-----------------------------
+
+    //---- Converting Pixmap back into QImage ---------------------------------
+
+    //---- Save the QImage ----------------------------------------------------
 }
