@@ -19,19 +19,6 @@ public:
     ~MainWindow();
     QGraphicsScene* scene = new QGraphicsScene(this);
     QGraphicsPixmapItem item;
-//    QColor sRGBtoLch(QColor);
-
-    void srgb2lch(float fimg[][4], int size);
-
-    void srgb2lab(float fimg[][4], int size);
-
-    void srgb2xyz(float fimg[][4], int size);
-
-    void xyz2srgb(float fimg[][4], int size);
-
-    void lab2srgb(float fimg[][4], int size);
-
-    void colorDifference(float fimg[][4], float reference[4], float* difference, int size);
 
 private slots:
     void on_pushButton_clicked();
